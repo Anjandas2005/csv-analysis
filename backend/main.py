@@ -35,6 +35,14 @@ def find_available_port(start_port: int) -> int:
                 return port
     raise OSError("No available port found for the backend server.")
 
+
+def _validate_session_id(session_id: str) -> str:
+    try:
+        return str(uuid.UUID(session_id))
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid session id.")
+
+
 @app.post("/api/v1/analyze")
 async def analyze_csv(file: UploadFile = File(...)):
     if not file.filename.endswith('.csv'):
@@ -71,7 +79,8 @@ async def analyze_csv(file: UploadFile = File(...)):
 
 @app.get("/api/v1/download-report/{session_id}")
 async def download_report(session_id: str):
-    pdf_path = os.path.join(UPLOAD_DIR, f"{session_id}_report.pdf")
+    safe_id = _validate_session_id(session_id)
+    pdf_path = os.path.join(UPLOAD_DIR, f"{safe_id}_report.pdf")
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Report not found.")
     return FileResponse(pdf_path, media_type="application/pdf", filename="analysis_report.pdf")
